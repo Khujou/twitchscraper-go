@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"os"
 )
 
 type Query struct {
@@ -114,40 +115,21 @@ func gqlPersistedQuery(query Query) GQLResponse {
 	return gqlResp
 }
 
-func GetClipAccessToken(slug string) GQLResponse {
-	query := Query{
-		OperationName: "VideoAccessToken_Clip",
-		Variables: struct {
-			Slug     string "json:\"slug\""
-			Platform string "json:\"platform\""
-		}{
-			Slug:     slug,
-			Platform: "web",
-		},
-		Extensions: struct {
-			PersistedQuery struct {
-				Version    int    "json:\"version\""
-				Sha256Hash string "json:\"sha256Hash\""
-			} "json:\"persistedQuery\""
-		}{
-			struct {
-				Version    int    "json:\"version\""
-				Sha256Hash string "json:\"sha256Hash\""
-			}{
-				Version:    1,
-				Sha256Hash: SHA256_HASH,
-			},
-		},
-	}
-
-	resp := gqlPersistedQuery(query)
-	return resp
-}
-
 func BuildDownloadURL(vq VideoQuality, pbat PlaybackAccessToken) string {
 	params := url.Values{}
 	params.Add("sig", pbat.Signature)
 	params.Add("token", pbat.Value)
 	downloadURL := fmt.Sprintf("%s?%s", vq.SourceURL, params.Encode())
 	return downloadURL
+}
+
+func DownloadVideo(filename, url string) {
+	resp, err := http.Get(url)
+	check(err)
+
+	f, err := os.Create(fmt.Sprintf("%s.mp4", filename))
+	check(err)
+
+	_, err = io.Copy(f, resp.Body)
+	check(err)
 }
